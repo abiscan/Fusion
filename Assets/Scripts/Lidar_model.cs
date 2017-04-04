@@ -5,38 +5,60 @@ using System;
 
 public class Lidar_model : MonoBehaviour
 {
-    public int numberOfVerticalRay;
+
     public int distance;
+    public int numberOfVerticalRay;
     public int numberOfScanIn360;
     public string outputPath;
     public int speed;
+    public int initialVerticalAngle;
+    public int field_of_view;
+
 
     //rivate
-    
+
     private Rigidbody rb;
     private float[][] distanceTab;
     private Vector3[][] closestPointTab;
     private float[][] reflectanceTab;
     private string[][] objectNameTab;
     private float minimumDistance;
-    
-    private GameObject laserGameObject;
 
+    private GameObject laserGameObject;
+    private bool useRayCast = true;
+    private string[] lines;
+    private int lineIterator = 0;
+
+
+    // Use this for initialization
+    void Start()
+    {
+        Debug.Log("[Lidar_model][Start][1]");
+        initialize();
+
+        if (!useRayCast)
+        {
+            numberOfVerticalRay = 1;
+            initializePointTabs();
+            createRays();
+        }
+    }
 
     private void initialize()
     {
         //Initialization of variable
         rb = GetComponent<Rigidbody>();
         int i = 0;
-        
+
         laserGameObject = new GameObject();
         while (laserGameObject.name != "Laser")
         {
             laserGameObject = this.transform.GetChild(i).gameObject;
             Debug.Log("[Lidar_model][initialize][1] laserGameObject found at index=" + i);
-            i++;            
+            i++;
         }
         minimumDistance = laserGameObject.transform.localScale.x * 2;
+        lines = new string[numberOfVerticalRay * numberOfScanIn360];
     }
 
     private void initializePointTabs()
@@ -63,9 +85,9 @@ public class Lidar_model : MonoBehaviour
 
     private void createRays()
     {
-        // Get the coordinates of the basis
         Vector3 localPositionBasis = laserGameObject.transform.localPosition;
         Vector3 localScaleBasis = laserGameObject.transform.localScale;
+        // Get the coordinates of the basis            
         Debug.Log("[Lidar_model][createRays][1] basisGameObject coordinates: x=" + laserGameObject.transform.localPosition.x + " y=" + laserGameObject.transform.localPosition.y + " z=" + laserGameObject.transform.localPosition.z);
         int horizontalIndex = 0;
         int verticalIndex = 0;
@@ -77,7 +99,7 @@ public class Lidar_model : MonoBehaviour
                 //Debug.Log("[Lidar_model][Start][3.1] Create primitive Cylinder angle=" + angle);
                 GameObject ray = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
                 ray.transform.parent = this.transform;
-                ray.name = "Ray_" + verticalIndex+"_"+ horizontalIndex;
+                ray.name = "Ray_" + verticalIndex + "_" + horizontalIndex;
                 //Position
                 {
                     //First compute offset in x and y
@@ -99,7 +121,7 @@ public class Lidar_model : MonoBehaviour
                 }
                 //Scale
                 {
-                    ray.transform.localScale = new Vector3(distance, (float) 0.01, (float) 0.01);
+                    ray.transform.localScale = new Vector3(distance, (float)0.01, (float)0.01);
                 }
 
                 Debug.Log("[Lidar_model][createRays][3] Create primitive Cylinder position=" + ray.transform.position + " localScale=" + ray.transform.localScale + " localRotation=" + ray.transform.localRotation);
@@ -120,14 +142,45 @@ public class Lidar_model : MonoBehaviour
         }
     }
 
-    // Use this for initialization
-    void Start()
+    private void createRayCast()
     {
-        Debug.Log("[Lidar_model][Start][1]");
-        initialize();
-        initializePointTabs();
-        createRays();
+        Vector3 positionLidar = laserGameObject.transform.position;
+        int finalAngle = initialVerticalAngle + field_of_view;
+        float angleIterator =  (((float) field_of_view) / ((float) numberOfVerticalRay));
+        int rayCastNumber = 0;
+        if (numberOfScanIn360 > 0)
+        {
+            //Debug.Log("[Lidar_model][createRays][1] finalAngle="+ finalAngle+ " angleIterator="+ angleIterator);
+            for (float verticalAngle = initialVerticalAngle; verticalAngle < finalAngle; verticalAngle += angleIterator)
+            {
+                //Debug.Log("[Lidar_model][createRays][2] verticalAngle="+ verticalAngle);
+                for (int horizontalAngle = 0; horizontalAngle < 360; horizontalAngle += 360 / numberOfScanIn360)
+                {
+                    rayCastNumber++;
+                    if (rayCastNumber > lines.Length) { 
+                        Debug.LogError("[Lidar_model][createRays] rayCastNumber="+ rayCastNumber+ " > lines.Length="+ lines.Length+ " verticalAngle=" + verticalAngle+ " horizontalAngle="+ horizontalAngle+ " angleIterator="+ angleIterator);
+                    }
+                    //Debug.Log("[Lidar_model][createRays][3] verticalAngle="+ verticalAngle+ " horizontalAngle="+ horizontalAngle);
+                    float distanceX = (float)Math.Cos((float)(horizontalAngle * Math.PI / 180));
+                    float distanceZ = (float)Math.Sin((float)(horizontalAngle * Math.PI / 180));
+                    float distanceY= -(float)Math.Cos((float)((verticalAngle) * Math.PI / 180));
+                    RaycastHit hit;
+                    if (Physics.Raycast(positionLidar, new Vector3(distanceX, distanceY, distanceZ), out hit, distance))
+                    {
+                        //Debug.Log("[Lidar_model][createRays][1] RayCast collide rayCastNumber="+ rayCastNumber + " distance=" + hit.distance + " collider=" + hit.distance + " at point=" + hit.point + " lineIterator=" + lineIterator);
+                        //Debug.DrawLine(positionLidar, hit.point);
+                        int reflectance = 0;
+                        //lines[lineIterator] = hit.collider.name + " " + hit.point.x.ToString() + " " + hit.point.y.ToString() + " " + hit.point.z.ToString() + " " + reflectance;
+                        lines[lineIterator] = hit.point.x.ToString() + " " + hit.point.y.ToString() + " " + hit.point.z.ToString() + " " + reflectance;
+                        //Debug.Log("[Lidar_model][createRays][5] frameCount=" + Time.frameCount + " lineIterator=" + lineIterator + " lines[lineIterator]=" + lines[lineIterator]);
+                        lineIterator++;
+                    }
+                }
+            }
+        }
     }
+
+
 
     // Update is called once per frame
     void Update()
@@ -136,7 +189,14 @@ public class Lidar_model : MonoBehaviour
     }
 
     void FixedUpdate()
-    {        
+    {
+
+        if (useRayCast)
+        {
+            lineIterator = 0;
+            createRayCast();
+        }
+
         //Function called right after the Frame is finished        
         float moveHorizontal = Input.GetAxis("Horizontal");
         float moveVertical = Input.GetAxis("Vertical");
@@ -144,74 +204,82 @@ public class Lidar_model : MonoBehaviour
         Transform transform = GetComponent<Transform>();
         transform.position += movement;
         writeFile(Time.frameCount);
-        initializePointTabs();
+        if (useRayCast)
+        {
+            initializePointTabs();
+        }
     }
 
     public void OnRayCollision(Collision collision)
     {
-        //Here we fill correctly distance closestPoint                
-        //Debug.Log("[Lidar_model][OnCollisionEnter][1] OnCollisionEnter: frameCount=" + Time.frameCount + " " + collision.gameObject.tag + " name: " + collision.gameObject.name);
-        if (collision.gameObject.CompareTag("Environment") || collision.gameObject.CompareTag("Environment"))
+        if (!useRayCast)
         {
-            //Debug.Log("[Lidar_model][OnCollisionEnter][1] OnCollisionEnter: frameCount=" + Time.frameCount + " " + collision.gameObject.tag + " name: " + collision.gameObject.name);            
-            foreach (ContactPoint contact in collision.contacts)
+            //Here we fill correctly distance closestPoint                
+            //Debug.Log("[Lidar_model][OnCollisionEnter][1] OnCollisionEnter: frameCount=" + Time.frameCount + " " + collision.gameObject.tag + " name: " + collision.gameObject.name);
+            if (collision.gameObject.CompareTag("Environment") || collision.gameObject.CompareTag("Environment"))
             {
-                String rayName = contact.thisCollider.name;
-                int verticalIndex = rayName[4] - '0';
-                int horizontalIndex = rayName[6] - '0';
-                if(verticalIndex > distanceTab.Length || horizontalIndex > distanceTab[0].Length)
+                //Debug.Log("[Lidar_model][OnCollisionEnter][1] OnCollisionEnter: frameCount=" + Time.frameCount + " " + collision.gameObject.tag + " name: " + collision.gameObject.name);            
+                foreach (ContactPoint contact in collision.contacts)
                 {
-                    Debug.LogError("[Lidar_model][OnRayCollision] ERROR frameCount=" + Time.frameCount +" rayName=" + rayName + " verticalIndex=" + verticalIndex + " > distanceTab.Length=" + distanceTab.Length+ " or horizontalIndex="+ horizontalIndex+ " > distanceTab[0].Length=" + distanceTab[0].Length);
+                    String rayName = contact.thisCollider.name;
+                    int verticalIndex = rayName[4] - '0';
+                    int horizontalIndex = rayName[6] - '0';
+                    if (verticalIndex > distanceTab.Length || horizontalIndex > distanceTab[0].Length)
+                    {
+                        Debug.LogError("[Lidar_model][OnRayCollision] ERROR frameCount=" + Time.frameCount + " rayName=" + rayName + " verticalIndex=" + verticalIndex + " > distanceTab.Length=" + distanceTab.Length + " or horizontalIndex=" + horizontalIndex + " > distanceTab[0].Length=" + distanceTab[0].Length);
+                    }
+                    float previousDistance = distanceTab[verticalIndex][horizontalIndex];
+                    float distance = Vector3.Distance(contact.point, laserGameObject.transform.position);
+                    Debug.Log("[Lidar_model][OnRayCollision][2] frameCount=" + Time.frameCount + " " + contact.thisCollider.name + " hit " + contact.otherCollider.name + " rayName=" + rayName + " verticalIndex=" + verticalIndex + " horizontalIndex=" + horizontalIndex + " at point=" + contact.point + " distance=" + distance + " objectName=" + contact.otherCollider.name);
+                    //We compare distance of the two points in order to take the closer one
+
+                    if (Math.Abs(distance) < Math.Abs(previousDistance) && Math.Abs(distance) > minimumDistance)
+                    {
+                        //distance tab needs to be updated
+                        Debug.Log("[Lidar_model][OnRayCollision][2] frameCount=" + Time.frameCount + " " + contact.thisCollider.name + " Update tab previousDistance=" + previousDistance + " distance=" + distance);
+                        int reflectance = 0;
+
+                        distanceTab[verticalIndex][horizontalIndex] = distance;
+                        closestPointTab[verticalIndex][horizontalIndex] = contact.point;
+                        reflectanceTab[verticalIndex][horizontalIndex] = reflectance;
+                        objectNameTab[verticalIndex][horizontalIndex] = contact.otherCollider.name;
+                    }
                 }
-                float previousDistance = distanceTab[verticalIndex][horizontalIndex];
-                float distance = Vector3.Distance(contact.point, laserGameObject.transform.position);
-                Debug.Log("[Lidar_model][OnRayCollision][2] frameCount=" + Time.frameCount + " " + contact.thisCollider.name + " hit " + contact.otherCollider.name + " rayName=" + rayName + " verticalIndex=" + verticalIndex + " horizontalIndex=" + horizontalIndex+" at point=" + contact.point + " distance=" + distance +  " objectName=" + contact.otherCollider.name);
-                //We compare distance of the two points in order to take the closer one
-
-                if (  Math.Abs(distance) < Math.Abs(previousDistance) && Math.Abs(distance) > minimumDistance)
-                {
-                    //distance tab needs to be updated
-                    Debug.Log("[Lidar_model][OnRayCollision][2] frameCount=" + Time.frameCount + " " + contact.thisCollider.name + " Update tab previousDistance=" + previousDistance+ " distance=" + distance);
-                   int reflectance = 0;
-
-                    distanceTab[verticalIndex][horizontalIndex] = distance;
-                    closestPointTab[verticalIndex][horizontalIndex] = contact.point;
-                    reflectanceTab[verticalIndex][horizontalIndex] = reflectance;
-                    objectNameTab[verticalIndex][horizontalIndex] = contact.otherCollider.name;                   
-                }                       
             }
         }
     }
 
     void writeFile(int frame)
-    {       
-        string[] lines = new String[50];
-        int lineIterator = 0;
-        for (int verticalIndex = 0; verticalIndex < distanceTab.Length; verticalIndex++)
+    {
+        if (!useRayCast)
         {
-            for (int horizontalIndex = 0; horizontalIndex < distanceTab[verticalIndex].Length; horizontalIndex++)
+            for (int verticalIndex = 0; verticalIndex < distanceTab.Length; verticalIndex++)
             {
-                if (distanceTab[verticalIndex][horizontalIndex] < distance + 1)
+                for (int horizontalIndex = 0; horizontalIndex < distanceTab[verticalIndex].Length; horizontalIndex++)
                 {
-                    if (lineIterator >= lines.Length)
+                    if (distanceTab[verticalIndex][horizontalIndex] < distance + 1)
                     {
-                        Debug.LogError("[Lidar_model][writeFile][3] ERROR frameCount=" + Time.frameCount + " lineIterator=" + lineIterator + "> lines.Length=" + lines.Length);
+                        if (lineIterator >= lines.Length)
+                        {
+                            Debug.LogError("[Lidar_model][writeFile][3] ERROR frameCount=" + Time.frameCount + " lineIterator=" + lineIterator + "> lines.Length=" + lines.Length);
+                        }
+                        else if (lines[lineIterator] != null)
+                        {
+                            Debug.LogError("[Lidar_model][writeFile][4] ERROR frameCount=" + Time.frameCount + " lines[lineIterator] with lineIterator=" + lineIterator + " not empty");
+                        }
+                        else
+                        {
+                            //lines[lineIterator] = closestPointTab[verticalIndex][horizontalIndex].x.ToString() + " " + closestPointTab[verticalIndex][horizontalIndex].y.ToString() + " " + closestPointTab[verticalIndex][horizontalIndex].z.ToString() + " " + reflectanceTab[verticalIndex][horizontalIndex] + " "+objectNameTab[verticalIndex][horizontalIndex] ;
+                            lines[lineIterator] = closestPointTab[verticalIndex][horizontalIndex].x.ToString() + " " + closestPointTab[verticalIndex][horizontalIndex].y.ToString() + " " + closestPointTab[verticalIndex][horizontalIndex].z.ToString() + " " + reflectanceTab[verticalIndex][horizontalIndex];
+                        }
+                        Debug.Log("[Lidar_model][writeFile][5] frameCount=" + Time.frameCount + " lineIterator=" + lineIterator + " lines[lineIterator]=" + lines[lineIterator]);
+                        lineIterator++;
                     }
-                    else if (lines[lineIterator] != null)
-                    {
-                        Debug.LogError("[Lidar_model][writeFile][4] ERROR frameCount=" + Time.frameCount + " lines[lineIterator] with lineIterator=" + lineIterator + " not empty");
-                    }
-                    else
-                    {
-                        lines[lineIterator] = objectNameTab[verticalIndex][horizontalIndex] + " " + closestPointTab[verticalIndex][horizontalIndex].x.ToString() + " " + closestPointTab[verticalIndex][horizontalIndex].y.ToString() + " " + closestPointTab[verticalIndex][horizontalIndex].z.ToString() + " " + reflectanceTab[verticalIndex][horizontalIndex];
-                    }
-                    Debug.Log("[Lidar_model][writeFile][5] frameCount=" + Time.frameCount + " lineIterator=" + lineIterator + " lines[lineIterator]=" + lines[lineIterator]);
-                    lineIterator++;
                 }
             }
         }
         string outputFile = outputPath + "frame_" + frame + ".txt";
         //Debug.Log("[Lidar_model][writeFile] frameCount=" + Time.frameCount + " Writing lines to output file:" + outputFile);
-        System.IO.File.WriteAllLines(outputFile, lines);        
+        System.IO.File.WriteAllLines(outputFile, lines);
     }
 }
