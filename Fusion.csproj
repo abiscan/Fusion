@@ -78,7 +78,6 @@
     <Compile Include="Assets\Scripts\Cylinder.cs" />
     <Compile Include="Assets\Scripts\Lidar.cs" />
     <Compile Include="Assets\Scripts\Lidar_model.cs" />
-    <Compile Include="Assets\Scripts\Ray.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <Target Name="GenerateTargetFrameworkMonikerAttribute" />

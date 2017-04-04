@@ -53,7 +53,7 @@ public class Lidar_model : MonoBehaviour
             int rayCastNumber = 0;
 
             //Debug.Log("[Lidar_model][createRays][1] finalAngle="+ finalAngle+ " angleIterator="+ angleIterator);
-            for (float verticalAngle = initialVerticalAngle; verticalAngle <= finalAngle; verticalAngle += angleIterator)
+            for (float verticalAngle = initialVerticalAngle; verticalAngle < finalAngle+angleIterator; verticalAngle += angleIterator)
             {
                 //Debug.Log("[Lidar_model][createRays][2] verticalAngle="+ verticalAngle);
                 for (int horizontalAngle = 0; horizontalAngle < 360; horizontalAngle += 360 / numberOfScanIn360)
@@ -61,7 +61,7 @@ public class Lidar_model : MonoBehaviour
                     rayCastNumber++;
                     if (rayCastNumber > lines.Length)
                     {
-                        Debug.LogError("[Lidar_model][createRays] rayCastNumber=" + rayCastNumber + " > lines.Length=" + lines.Length + " verticalAngle=" + verticalAngle + " horizontalAngle=" + horizontalAngle + " angleIterator=" + angleIterator);
+                        Debug.LogError("[Lidar_model][createRays] frameCount=" + Time.frameCount+" rayCastNumber =" + rayCastNumber + " > lines.Length=" + lines.Length + " verticalAngle=" + verticalAngle + " horizontalAngle=" + horizontalAngle + " angleIterator=" + angleIterator);
                     }
                     //Debug.Log("[Lidar_model][createRays][3] verticalAngle=" + verticalAngle + " horizontalAngle=" + horizontalAngle + " angleIterator=" + angleIterator);
                     float distanceX = (float)Math.Cos((float)(horizontalAngle * Math.PI / 180));
@@ -94,7 +94,7 @@ public class Lidar_model : MonoBehaviour
             if (rayCastNumber != numberOfVerticalRay * numberOfScanIn360)
             {
                 int numberExpected = numberOfVerticalRay * numberOfScanIn360;
-                Debug.LogError("[Lidar_model][createRays] rayCastNumber=" + rayCastNumber + " != numberExpected=" + numberExpected);
+                Debug.LogError("[Lidar_model][createRays] frameCount=" + Time.frameCount + " rayCastNumber =" + rayCastNumber + " != numberExpected=" + numberExpected);
             }
         }
     }
